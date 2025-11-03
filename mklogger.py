@@ -51,7 +51,7 @@ class ActivityLogger:
 
             self.file_handle = open(self.log_file, 'a')
             self.log_event("=== LOGGING STARTED ===")
-            print("Logging started. Press F9 to stop.")
+            print("Logging started.")
     
     def stop_logging(self):
         """Stop logging session"""
@@ -89,15 +89,6 @@ class ActivityLogger:
     def on_key_press(self, key):
         """Handle key press events"""
         try:
-            # Start logging with F8 key
-            if key == keyboard.Key.f8:
-                self.start_logging()
-                return
-            
-            # Stop logging with F9 key
-            if key == keyboard.Key.f9:
-                self.stop_logging()
-                return
             
             if self.is_logging:
                 now = datetime.now()
@@ -192,8 +183,6 @@ class ActivityLogger:
     def run(self):
         """Start the logger"""
         print("Activity Logger started!")
-        print("Press F8 to start logging")
-        print("Press F9 to stop logging")
 
         keyboard_listener = keyboard.Listener(on_press=self.on_key_press)
         mouse_listener = mouse.Listener(
