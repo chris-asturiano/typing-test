@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinter import font as tkfont
+from mklogger import ActivityLogger
 import time
 import os
-
+import threading
 
 class TypingTestApp:
     def __init__(self, root: tk.Tk):
@@ -39,6 +40,10 @@ class TypingTestApp:
         self._build_ui()
         self._apply_text(self.test_text)
         self._update_timer_label()
+
+        self.logger = ActivityLogger(log_file='typing_activity_log.txt')
+        self.logger_thread = threading.Thread(target=self.logger.run, daemon=True)
+        self.logger_thread.start()
 
     def _build_ui(self):
         # Styles and fonts
@@ -455,6 +460,8 @@ class TypingTestApp:
             # fallback if helpers not yet defined at runtime ordering
             pass
 
+        self.logger.start_logging()
+
     def restart_test(self):
         if not self.test_text.strip():
             return
@@ -487,6 +494,13 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
+        
+         # Stop the activity logger now that the test is finished
+        try:
+            self.logger.stop_logging()
+        except Exception:
+            pass
+
         self._set_input_enabled(False)
         self._set_editable(True)
 
@@ -520,6 +534,12 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Completed" if finished else "Time up")
+
+        # Stop the activity logger when the test ends (completed or time up)
+        try:
+            self.logger.stop_logging()
+        except Exception:
+            pass
 
         self._set_input_enabled(False)
         self._set_editable(True)
