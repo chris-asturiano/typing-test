@@ -405,6 +405,7 @@ class TypingTestApp:
         self.timer_running = True
         self.start_time = time.time()
         self.timer_job = self.root.after(1000, self._tick)
+        self.logger.start_logging()
 
     def _cancel_timer(self):
         if self.timer_job is not None:
@@ -414,6 +415,8 @@ class TypingTestApp:
                 pass
         self.timer_job = None
         self.timer_running = False
+        self.logger.stop_logging()
+
 
     def start_test(self):
         try:
@@ -460,8 +463,6 @@ class TypingTestApp:
             # fallback if helpers not yet defined at runtime ordering
             pass
 
-        self.logger.start_logging()
-
     def restart_test(self):
         if not self.test_text.strip():
             return
@@ -494,12 +495,6 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
-        
-         # Stop the activity logger now that the test is finished
-        try:
-            self.logger.stop_logging()
-        except Exception:
-            pass
 
         self._set_input_enabled(False)
         self._set_editable(True)
