@@ -122,7 +122,7 @@ class TypingTestApp:
         self.top_text.tag_configure("incorrect", background="#fecaca")
         self.top_text.tag_configure("current", background="#facc15")
 
-        self.bottom_frame = ttk.LabelFrame(top, text="Type Here")
+        self.bottom_frame = ttk.LabelFrame(top, text="Type Here (The test starts when you start typing.)")
         self.bottom_frame.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
 
         self.input_text = tk.Text(
@@ -154,7 +154,17 @@ class TypingTestApp:
         self.acc_var = tk.StringVar(value="Accuracy: 0.0%")
         self.time_taken_var = tk.StringVar(value="Time: 0.0s")
 
-        ttk.Label(results, textvariable=self.status_var).pack(side=tk.LEFT)
+        self.status_font = tkfont.Font(size=12, weight="bold")
+        self.status_label = tk.Label(
+            results,
+            textvariable=self.status_var,
+            font=self.status_font,
+            padx=10,
+            pady=5,
+        )
+        self.status_label.pack(side=tk.LEFT)
+        self._update_status_color("default")
+
         ttk.Label(results, textvariable=self.wpm_var).pack(side=tk.RIGHT)
         ttk.Label(results, textvariable=self.acc_var).pack(side=tk.RIGHT, padx=(0, 12))
         ttk.Label(results, textvariable=self.time_taken_var).pack(side=tk.RIGHT, padx=(0, 12))
@@ -165,6 +175,16 @@ class TypingTestApp:
 
         # Also bind at root to ensure the shortcut works consistently
         self.root.bind_all("<Control-BackSpace>", self._on_ctrl_backspace)
+
+    def _update_status_color(self, state: str):
+        color_map = {
+            "running": ("#16a34a", "white"),  # green
+            "stopped": ("#dc2626", "white"),  # red
+            "pending": ("#facc15", "black"),  # yellow
+            "default": ("#3b82f6", "white"),  # blue
+        }
+        bg, fg = color_map.get(state, ("white", "black"))
+        self.status_label.config(bg=bg, fg=fg)
 
     def _set_editable(self, editable: bool):
         self.top_text.config(state=tk.NORMAL if editable else tk.DISABLED)
@@ -410,6 +430,7 @@ class TypingTestApp:
         self.start_time = time.time()
         self.timer_job = self.root.after(1000, self._tick)
         self.logger.start_logging()
+        self._update_status_color("running")
 
     def _cancel_timer(self):
         if self.timer_job is not None:
@@ -454,6 +475,7 @@ class TypingTestApp:
         self.acc_var.set("Accuracy: 0.0%")
         self.time_taken_var.set("Time: 0.0s")
         self.status_var.set("Test running… Start typing!")
+        self._update_status_color("pending")
         self.test_running = True
         self.timer_running = False
 
@@ -499,6 +521,7 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
+        self._update_status_color("stopped")
 
         self._log_stats_to_csv(wpm, accuracy, elapsed)
         self._set_input_enabled(False)
@@ -534,6 +557,7 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Completed" if finished else "Time up")
+        self._update_status_color("stopped")
 
         self._log_stats_to_csv(wpm, accuracy, elapsed)
 
