@@ -1,14 +1,2 @@
-Timestamp,WPM,Accuracy %,TimeTaken,TestFile,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
-2025-11-05 18:55:51,70.8,67.0,11.7,TextA.txt,0.000,1,0,11.499,12
-2025-11-05 19:03:44,97.6,100.0,37.4,TextA.txt,0.000,0,0,37.275,27
-2025-11-06 00:32:51,0.0,0.0,0.0,Default Text,0.000,0,0,0.000,0
-2025-11-06 00:33:30,31.1,55.8,9.3,Default Text,0.000,1,0,8.903,1
-2025-11-06 00:35:04,16.7,13.0,2.2,Default Text,0.000,1,0,2.080,0
-2025-11-06 00:37:05,125.5,100.0,8.1,Default Text,0.000,0,0,8.010,2
-2025-11-06 00:58:14,80.5,100.0,45.3,TextA.txt,0.000,0,0,45.157,36
-2025-11-06 00:59:26,37.2,100.0,29.4,NumberA.txt,0.000,0,0,29.166,5
-2025-11-06 01:00:46,23.7,100.0,61.3,ProgrammingA.txt,0.000,0,0,61.133,38
-2025-11-06 01:02:06,96.9,100.0,42.7,TextB.txt,0.000,0,0,42.604,42
-2025-11-06 01:04:05,39.3,100.0,27.8,NumberB.txt,0.000,0,0,27.556,4
-2025-11-06 01:05:11,30.6,100.0,59.6,ProgrammingB.txt,1.447,5,0,59.509,66
-2025-11-06 01:09:40,25.5,100.0,42.8,NumberA.txt,1.346,1,0,42.598,21
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TimeTaken,TestFile,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-06 01:19:21,Riki,1,95.4,100.0,38.2,TextA.txt,5.393,5,0,38.033,19

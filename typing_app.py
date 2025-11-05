@@ -43,7 +43,7 @@ class TypingTestApp:
         self.task_labels = {1: "Text Entry", 2: "Number Entry", 3: "Programming Syntax"}
         self.current_keyboard_index = 0
         self.current_task_index = 0
-
+        self.participant_name = "" # New: Store participant's name
 
         # Programming mode state
         self.programming_mode = tk.BooleanVar(value=False)
@@ -603,7 +603,7 @@ class TypingTestApp:
         filename = "typing_stats.csv"
         
         fieldnames = [
-            'Timestamp', 'WPM', 'Accuracy %', 'TimeTaken', 'TestFile',
+            'Timestamp', 'Participant', 'GroupNumber', 'WPM', 'Accuracy %', 'TimeTaken', 'TestFile',
             'MouseMovementTime', 'MouseClicks', 'MouseScrolls',
             'TotalDuration', 'Backspaces'
         ]
@@ -645,6 +645,8 @@ class TypingTestApp:
                 
                 writer.writerow({
                     'Timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+                    'Participant': self.participant_name, 
+                    'GroupNumber': self.experiment_group, 
                     'WPM': f"{wpm:.1f}",
                     'Accuracy %': f"{accuracy:.1f}",
                     'TimeTaken': f"{elapsed:.1f}",
@@ -783,6 +785,12 @@ class TypingTestApp:
         group = tk.simpledialog.askinteger("Experiment Setup", "Enter Group Number (1-6):", parent=self.root, minvalue=1, maxvalue=6)
         if group is None:
             return
+
+        participant_name = tk.simpledialog.askstring("Experiment Setup", "Enter Participant Name:", parent=self.root)
+        if participant_name is None or not participant_name.strip():
+            messagebox.showwarning("Experiment Setup", "Participant name cannot be empty.")
+            return
+        self.participant_name = participant_name.strip()
 
         self.experiment_group = group
         self._start_experiment_flow(group)
