@@ -27,6 +27,7 @@ class TypingTestApp:
         self._last_typed = ""
         self._current_pos = 0
         self.current_test_file = "Default Text"
+        self.current_test_display_var = tk.StringVar(value="Test: Default Text")
 
         # Programming mode state
         self.programming_mode = tk.BooleanVar(value=False)
@@ -154,9 +155,10 @@ class TypingTestApp:
         self.time_taken_var = tk.StringVar(value="Time: 0.0s")
 
         ttk.Label(results, textvariable=self.status_var).pack(side=tk.LEFT)
-        ttk.Label(results, textvariable=self.wpm_var, style="Metric.TLabel").pack(side=tk.RIGHT)
-        ttk.Label(results, textvariable=self.acc_var, style="Metric.TLabel").pack(side=tk.RIGHT, padx=(0, 12))
+        ttk.Label(results, textvariable=self.wpm_var).pack(side=tk.RIGHT)
+        ttk.Label(results, textvariable=self.acc_var).pack(side=tk.RIGHT, padx=(0, 12))
         ttk.Label(results, textvariable=self.time_taken_var).pack(side=tk.RIGHT, padx=(0, 12))
+        ttk.Label(results, textvariable=self.current_test_display_var).pack(side=tk.RIGHT, padx=(0, 12))
 
         self._set_editable(True)
         self._set_input_enabled(False)
@@ -656,6 +658,7 @@ class TypingTestApp:
                 messagebox.showerror("Load Error", f"Failed to load file:\n{e}")
                 return
             self.current_test_file = fname
+            self.current_test_display_var.set(f"Test: {fname}")
             self.test_text = content
             self._apply_text(self.test_text)
             self.status_var.set(f"Loaded: {fname}")

@@ -1,2 +1,3 @@
 Timestamp,WPM,Accuracy %,TimeTaken,TestFile,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
 2025-11-05 18:55:51,70.8,67.0,11.7,TextA.txt,0.000,1,0,11.499,12
+2025-11-05 19:03:44,97.6,100.0,37.4,TextA.txt,0.000,0,0,37.275,27
