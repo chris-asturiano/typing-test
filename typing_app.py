@@ -44,6 +44,7 @@ class TypingTestApp:
         self.current_keyboard_index = 0
         self.current_task_index = 0
         self.participant_name = "" # New: Store participant's name
+        self.experiment_results = {} # Stores results for the current experiment run
 
         # Programming mode state
         self.programming_mode = tk.BooleanVar(value=False)
@@ -547,9 +548,26 @@ class TypingTestApp:
         self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
+        self.wpm_var.set(f"WPM: {wpm:.1f}")
+        self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
+        self.time_taken_var.set(f"Time: {elapsed:.1f}s")
+        self.status_var.set("Stopped")
         self._update_status_color("stopped")
 
-        self._log_stats_to_csv(wpm, accuracy, elapsed)
+        # Get stats from logger for single test logging
+        mouse_move_time = self.logger.total_mouse_move_time
+        total_clicks = self.logger.left_click_count + self.logger.right_click_count
+        total_scrolls = (
+            self.logger.scroll_up_count + self.logger.scroll_down_count +
+            self.logger.scroll_left_count + self.logger.scroll_right_count
+        )
+        backspaces = self.logger.backspace_count
+        
+        total_duration = 0.0
+        if self.logger.first_key_time and self.logger.last_key_time:
+            total_duration = (self.logger.last_key_time - self.logger.first_key_time).total_seconds()
+
+        self._log_single_test_stats_to_separate_csv(wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces)
         self._set_input_enabled(False)
         self._set_editable(True)
 
@@ -575,6 +593,7 @@ class TypingTestApp:
         correct = sum(1 for i in range(n) if typed[i] == target[i])
         total_typed = len(typed)
         accuracy = (correct / total_typed * 100.0) if total_typed > 0 else 0.0
+        error_rate = (100.0 - accuracy) if total_typed > 0 else 0.0
 
         minutes = max(elapsed, 1e-9) / 60.0
         wpm = (correct / 5.0) / minutes if minutes > 0 else 0.0
@@ -585,7 +604,45 @@ class TypingTestApp:
         self.status_var.set("Completed" if finished else "Time up")
         self._update_status_color("stopped")
 
-        self._log_stats_to_csv(wpm, accuracy, elapsed)
+        # Get stats from logger
+        mouse_move_time = self.logger.total_mouse_move_time
+        total_clicks = self.logger.left_click_count + self.logger.right_click_count
+        total_scrolls = (
+            self.logger.scroll_up_count + self.logger.scroll_down_count +
+            self.logger.scroll_left_count + self.logger.scroll_right_count
+        )
+        backspaces = self.logger.backspace_count
+        
+        total_duration = 0.0
+        if self.logger.first_key_time and self.logger.last_key_time:
+            total_duration = (self.logger.last_key_time - self.logger.first_key_time).total_seconds()
+
+        if self.experiment_running:
+            group_config = self.experiment_design[self.experiment_group]
+            current_keyboard = group_config["first_kb"] if self.current_keyboard_index == 0 else group_config["second_kb"]
+            current_task_id = group_config["task_order"][self.current_task_index]
+            task_name_prefix = self.task_labels[current_task_id].split(" ")[0] # e.g., "Text", "Number", "Programming"
+            
+            # Map task names to CSV prefixes
+            task_prefix_map = {
+                "Text": "Text",
+                "Number": "Num",
+                "Programming": "Prog"
+            }
+            csv_task_prefix = task_prefix_map.get(task_name_prefix, task_name_prefix)
+
+            # Store results for the current task
+            key_prefix = f"{csv_task_prefix}_{current_keyboard.replace('%', '')}"
+            self.experiment_results[f"{key_prefix}_WPM"] = f"{wpm:.1f}"
+            self.experiment_results[f"{key_prefix}_Accuracy"] = f"{accuracy:.1f}"
+            self.experiment_results[f"{key_prefix}_ErrorRate"] = f"{error_rate:.1f}"
+            self.experiment_results[f"{key_prefix}_MouseTime"] = f"{mouse_move_time:.3f}"
+            self.experiment_results[f"{key_prefix}_Clicks"] = total_clicks
+            self.experiment_results[f"{key_prefix}_Backspaces"] = backspaces
+            self.experiment_results[f"{key_prefix}_Scrolls"] = total_scrolls
+            self.experiment_results[f"{key_prefix}_TotalTime"] = f"{elapsed:.3f}"
+        else:
+            self._log_single_test_stats_to_separate_csv(wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces)
 
         # Stop the activity logger when the test ends (completed or time up)
         try:
@@ -599,8 +656,8 @@ class TypingTestApp:
         if self.experiment_running:
             self.root.after(100, self._handle_experiment_continuation)
 
-    def _log_stats_to_csv(self, wpm, accuracy, elapsed):
-        filename = "typing_stats.csv"
+    def _log_single_test_stats_to_separate_csv(self, wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces):
+        filename = "single_typing_stats.csv"
         
         fieldnames = [
             'Timestamp', 'Participant', 'GroupNumber', 'WPM', 'Accuracy %', 'TimeTaken', 'TestFile',
@@ -645,8 +702,8 @@ class TypingTestApp:
                 
                 writer.writerow({
                     'Timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
-                    'Participant': self.participant_name, 
-                    'GroupNumber': self.experiment_group, 
+                    'Participant': self.participant_name if self.participant_name else "Default", 
+                    'GroupNumber': self.experiment_group if self.experiment_group else "N/A", 
                     'WPM': f"{wpm:.1f}",
                     'Accuracy %': f"{accuracy:.1f}",
                     'TimeTaken': f"{elapsed:.1f}",
@@ -654,11 +711,55 @@ class TypingTestApp:
                     'MouseMovementTime': f"{mouse_move_time:.3f}",
                     'MouseClicks': total_clicks,
                     'MouseScrolls': total_scrolls,
-                    'TotalDuration': f"{total_duration:.3f}",
+                    'TotalDuration': f"{elapsed:.3f}",
                     'Backspaces': backspaces
                 })
         except Exception as e:
             messagebox.showerror("Logging Error", f"Failed to write to CSV log:\n{e}")
+
+    def _save_experiment_results_to_csv(self):
+        filename = "typing_stats.csv"
+        
+        # Define fieldnames based on the dummy CSV, excluding 'Task_Variant'
+        fieldnames = [
+            'Participant', 'GroupNumber',
+            'Text_60_WPM', 'Text_60_Accuracy', 'Text_60_ErrorRate', 'Text_60_MouseTime', 'Text_60_Clicks', 'Text_60_Backspaces', 'Text_60_Scrolls', 'Text_60_TotalTime',
+            'Num_60_WPM', 'Num_60_Accuracy', 'Num_60_ErrorRate', 'Num_60_MouseTime', 'Num_60_Clicks', 'Num_60_Backspaces', 'Num_60_Scrolls', 'Num_60_TotalTime',
+            'Prog_60_WPM', 'Prog_60_Accuracy', 'Prog_60_ErrorRate', 'Prog_60_MouseTime', 'Prog_60_Clicks', 'Prog_60_Backspaces', 'Prog_60_Scrolls', 'Prog_60_TotalTime',
+            'Text_100_WPM', 'Text_100_Accuracy', 'Text_100_ErrorRate', 'Text_100_MouseTime', 'Text_100_Clicks', 'Text_100_Backspaces', 'Text_100_Scrolls', 'Text_100_TotalTime',
+            'Num_100_WPM', 'Num_100_Accuracy', 'Num_100_ErrorRate', 'Num_100_MouseTime', 'Num_100_Clicks', 'Num_100_Backspaces', 'Num_100_Scrolls', 'Num_100_TotalTime',
+            'Prog_100_WPM', 'Prog_100_Accuracy', 'Prog_100_ErrorRate', 'Prog_100_MouseTime', 'Prog_100_Clicks', 'Prog_100_Backspaces', 'Prog_100_Scrolls', 'Prog_100_TotalTime'
+        ]
+
+        write_header = True
+        if os.path.isfile(filename):
+            try:
+                with open(filename, 'r', newline='', encoding='utf-8') as csvfile:
+                    reader = csv.reader(csvfile)
+                    header = next(reader)
+                    if header == fieldnames:
+                        write_header = False
+            except (StopIteration, IOError):
+                pass # File is empty or cannot be read, so we'll write a header
+
+        try:
+            with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                if write_header:
+                    writer.writeheader()
+                
+                row_data = {field: '' for field in fieldnames} # Initialize all fields to empty strings
+                row_data['Participant'] = self.participant_name
+                row_data['GroupNumber'] = self.experiment_group
+                row_data.update(self.experiment_results) # Update with actual results
+
+                writer.writerow(row_data)
+            messagebox.showinfo("Experiment Log", "Experiment results saved to typing_stats.csv")
+        except Exception as e:
+            messagebox.showerror("Logging Error", f"Failed to write experiment results to CSV log:\n{e}")
+        finally:
+            self.experiment_results = {} # Clear results after saving
 
     def load_test(self):
         if self.test_running:
@@ -800,6 +901,7 @@ class TypingTestApp:
         self.experiment_group = group_id
         self.current_keyboard_index = 0
         self.current_task_index = 0
+        self.experiment_results = {} # Clear results for a new experiment
         self._advance_experiment()
 
     def _advance_experiment(self):
@@ -812,6 +914,7 @@ class TypingTestApp:
 
         if self.current_keyboard_index >= len(keyboards):
             messagebox.showinfo("Experiment Complete", f"All tasks for Group {self.experiment_group} are done.")
+            self._save_experiment_results_to_csv() # Save results when experiment is complete
             self.experiment_running = False
             return
 
@@ -822,6 +925,7 @@ class TypingTestApp:
             self.current_task_index = 0
             if self.current_keyboard_index >= len(keyboards):
                 messagebox.showinfo("Experiment Complete", f"All tasks for Group {self.experiment_group} are done.")
+                self._save_experiment_results_to_csv() # Save results when experiment is complete
                 self.experiment_running = False
                 return
             

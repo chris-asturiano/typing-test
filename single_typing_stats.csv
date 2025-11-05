@@ -1,0 +1,2 @@
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TimeTaken,TestFile,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-06 01:42:49,Default,N/A,115.0,100.0,31.7,TextA.txt,0.000,0,0,31.540,14
