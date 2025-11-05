@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from tkinter import font as tkfont
 from mklogger import ActivityLogger
 import time
@@ -28,6 +28,22 @@ class TypingTestApp:
         self._current_pos = 0
         self.current_test_file = "Default Text"
         self.current_test_display_var = tk.StringVar(value="Test: Default Text")
+
+        # Experiment state
+        self.experiment_running = False
+        self.experiment_group = None
+        self.experiment_design = {
+            1: {"first_kb": "60%", "second_kb": "100%", "task_order": [1, 2, 3], "content": {"60%": "A", "100%": "B"}},
+            2: {"first_kb": "60%", "second_kb": "100%", "task_order": [2, 3, 1], "content": {"60%": "A", "100%": "B"}},
+            3: {"first_kb": "60%", "second_kb": "100%", "task_order": [3, 1, 2], "content": {"60%": "A", "100%": "B"}},
+            4: {"first_kb": "100%", "second_kb": "60%", "task_order": [1, 2, 3], "content": {"100%": "A", "60%": "B"}},
+            5: {"first_kb": "100%", "second_kb": "60%", "task_order": [2, 3, 1], "content": {"100%": "A", "60%": "B"}},
+            6: {"first_kb": "100%", "second_kb": "60%", "task_order": [3, 1, 2], "content": {"100%": "A", "60%": "B"}},
+        }
+        self.task_labels = {1: "Text Entry", 2: "Number Entry", 3: "Programming Syntax"}
+        self.current_keyboard_index = 0
+        self.current_task_index = 0
+
 
         # Programming mode state
         self.programming_mode = tk.BooleanVar(value=False)
@@ -79,7 +95,8 @@ class TypingTestApp:
         ttk.Separator(controls, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=(0, 12), pady=4)
 
         ttk.Button(controls, text="Load Test", command=self.load_test).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(controls, text="Save Test", command=self.save_test).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Button(controls, text="Save Test", command=self.save_test).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(controls, text="Perform Experiment", command=self.perform_experiment).pack(side=tk.LEFT, padx=(0, 12))
 
         ttk.Separator(controls, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=(0, 12), pady=4)
 
@@ -443,7 +460,8 @@ class TypingTestApp:
         self.logger.stop_logging()
 
 
-    def start_test(self):
+    def _reset_test_state(self):
+        """Resets the UI and state for a new test, without starting it."""
         try:
             self.initial_time = int(self.time_var.get())
         except Exception:
@@ -453,7 +471,7 @@ class TypingTestApp:
         text = self.top_text.get("1.0", "end-1c")
         if not text.strip():
             messagebox.showinfo("Typing Test", "Please provide text to type (top panel).")
-            return
+            return False
 
         self.test_text = text
         self._apply_text(self.test_text)
@@ -474,20 +492,28 @@ class TypingTestApp:
         self.wpm_var.set("WPM: 0.0")
         self.acc_var.set("Accuracy: 0.0%")
         self.time_taken_var.set("Time: 0.0s")
-        self.status_var.set("Test running… Start typing!")
-        self._update_status_color("pending")
-        self.test_running = True
+        self.status_var.set("Ready to start")
+        self._update_status_color("default")
+        self.test_running = False
         self.timer_running = False
 
         # reset incremental-highlighting state
         self._last_typed = ""
         self._current_pos = 0
-        # initialize tags for empty typed text
         try:
             self._retag_full("", self.test_text)
         except Exception:
-            # fallback if helpers not yet defined at runtime ordering
             pass
+        return True
+
+    def start_test(self):
+        if not self._reset_test_state():
+            return
+        
+        self.status_var.set("Test running… Start typing!")
+        self._update_status_color("pending")
+        self.test_running = True
+        self.timer_running = False
 
     def restart_test(self):
         if not self.test_text.strip():
@@ -569,6 +595,9 @@ class TypingTestApp:
 
         self._set_input_enabled(False)
         self._set_editable(True)
+
+        if self.experiment_running:
+            self.root.after(100, self._handle_experiment_continuation)
 
     def _log_stats_to_csv(self, wpm, accuracy, elapsed):
         filename = "typing_stats.csv"
@@ -724,6 +753,123 @@ class TypingTestApp:
             messagebox.showerror("Save Error", f"Failed to save file:\n{e}")
             return
         self.status_var.set(f"Saved: {path}")
+
+    def _handle_experiment_continuation(self):
+        group_config = self.experiment_design[self.experiment_group]
+        task_order = group_config["task_order"]
+        
+        current_task_id = task_order[self.current_task_index]
+        task_name = self.task_labels[current_task_id]
+
+        self.current_task_index += 1
+
+        if self.current_task_index < len(task_order):
+            next_task_id = task_order[self.current_task_index]
+            next_task_name = self.task_labels[next_task_id]
+            if messagebox.askyesno("Task Complete", f"{task_name} Test Done.\nMove onto {next_task_name} task?"):
+                self._advance_experiment()
+            else:
+                self.experiment_running = False
+        else:
+            # This was the last task for the current keyboard
+            self._advance_experiment()
+
+    def perform_experiment(self):
+        if self.test_running:
+            messagebox.showwarning("Experiment", "A test is already running. Please stop it before starting an experiment.")
+            return
+
+        # Simple dialog to get group number
+        group = tk.simpledialog.askinteger("Experiment Setup", "Enter Group Number (1-6):", parent=self.root, minvalue=1, maxvalue=6)
+        if group is None:
+            return
+
+        self.experiment_group = group
+        self._start_experiment_flow(group)
+
+    def _start_experiment_flow(self, group_id: int):
+        self.experiment_running = True
+        self.experiment_group = group_id
+        self.current_keyboard_index = 0
+        self.current_task_index = 0
+        self._advance_experiment()
+
+    def _advance_experiment(self):
+        if not self.experiment_running:
+            return
+
+        group_config = self.experiment_design[self.experiment_group]
+        keyboards = [group_config["first_kb"], group_config["second_kb"]]
+        task_order = group_config["task_order"]
+
+        if self.current_keyboard_index >= len(keyboards):
+            messagebox.showinfo("Experiment Complete", f"All tasks for Group {self.experiment_group} are done.")
+            self.experiment_running = False
+            return
+
+        current_keyboard = keyboards[self.current_keyboard_index]
+
+        if self.current_task_index >= len(task_order):
+            self.current_keyboard_index += 1
+            self.current_task_index = 0
+            if self.current_keyboard_index >= len(keyboards):
+                messagebox.showinfo("Experiment Complete", f"All tasks for Group {self.experiment_group} are done.")
+                self.experiment_running = False
+                return
+            
+            next_keyboard = keyboards[self.current_keyboard_index]
+            if messagebox.askyesno("Next Keyboard", f"First keyboard tasks complete. Switch to the {next_keyboard} keyboard and continue?"):
+                self._advance_experiment()
+            else:
+                self.experiment_running = False
+            return
+
+        current_task_id = task_order[self.current_task_index]
+        task_name = self.task_labels[current_task_id]
+        content_version = group_config["content"][current_keyboard]
+
+        self._load_experiment_test_file(task_name, content_version)
+        self._reset_test_state()
+        self._set_input_enabled(False) # Disable until they click start
+
+        message = (
+            f"Assigned Keyboard: {current_keyboard}\n"
+            f"Starting Task: {task_name} (Version {content_version})\n\n"
+            f"Click 'Start Test' to begin."
+        )
+        messagebox.showinfo("Next Task", message)
+        # Re-enable after popup
+        self.root.after(100, lambda: self._set_input_enabled(True))
+
+    def _load_experiment_test_file(self, task_name: str, version: str):
+        # Maps task names to file prefixes
+        task_to_prefix = {
+            "Text Entry": "Text",
+            "Number Entry": "Number",
+            "Programming Syntax": "Programming"
+        }
+        prefix = task_to_prefix.get(task_name)
+        if not prefix:
+            messagebox.showerror("Error", f"Unknown task name: {task_name}")
+            return
+
+        fname = f"{prefix}{version}.txt"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, fname)
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read().strip("\n")
+        except Exception as e:
+            messagebox.showerror("Load Error", f"Failed to load file: {fname}\n{e}")
+            self.experiment_running = False
+            return
+
+        self.current_test_file = fname
+        self.current_test_display_var.set(f"Test: {fname}")
+        self.test_text = content
+        self._apply_text(self.test_text)
+        self.status_var.set(f"Loaded: {fname}")
 
 
 def main():
