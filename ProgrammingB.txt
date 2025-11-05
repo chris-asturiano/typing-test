@@ -4,5 +4,12 @@ int main() {
         result = result * i;
     }
     printf("Result: %d", result);
+    if (result > 50) {
+        printf(" - Success");
+    } else {
+        printf(" - Too small");
+    }
+    result = result + 10;
+    printf("\nAdjusted Result: %d", result);
     return 0;
 }
