@@ -4,5 +4,12 @@ int main() {
     int sum = 0;
     sum = a + b;
     printf("Sum: %d", sum);
+    if (sum > 10) {
+        printf(" - Large value");
+    } else {
+        printf(" - Small value");
+    }
+    sum = sum + 5;
+    printf("\nNew Sum: %d", sum);
     return 0;
 }

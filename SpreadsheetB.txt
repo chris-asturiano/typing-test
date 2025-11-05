@@ -1,0 +1,8 @@
+Item    ID    Qty    Price    Total
+D145    12    58.40    =12*58.40
+E309    9    84.25    =9*84.25
+F227    21    31.10    =21*31.10
+Grand_Total    =12*58.40+9*84.25+21*31.10
+Tax_10%    =SUM(Grand_Total)*0.10
+Final_Total    =SUM(Grand_Total)+Tax_10%
+Average    =AVERAGE(58.40,84.25,31.10)
