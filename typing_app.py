@@ -5,6 +5,7 @@ from mklogger import ActivityLogger
 import time
 import os
 import threading
+import csv
 
 class TypingTestApp:
     def __init__(self, root: tk.Tk):
@@ -16,7 +17,7 @@ class TypingTestApp:
             "Pack my box with five dozen liquor jugs."
         )
 
-        self.initial_time = 60
+        self.initial_time = 120
         self.time_left = self.initial_time
         self.timer_job = None
         self.test_running = False
@@ -25,6 +26,7 @@ class TypingTestApp:
         self._programmatic_edit = False
         self._last_typed = ""
         self._current_pos = 0
+        self.current_test_file = "Default Text"
 
         # Programming mode state
         self.programming_mode = tk.BooleanVar(value=False)
@@ -492,10 +494,11 @@ class TypingTestApp:
         wpm = (correct / 5.0) / minutes if minutes > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
-        self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
+        self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
 
+        self._log_stats_to_csv(wpm, accuracy, elapsed)
         self._set_input_enabled(False)
         self._set_editable(True)
 
@@ -530,6 +533,8 @@ class TypingTestApp:
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Completed" if finished else "Time up")
 
+        self._log_stats_to_csv(wpm, accuracy, elapsed)
+
         # Stop the activity logger when the test ends (completed or time up)
         try:
             self.logger.stop_logging()
@@ -538,6 +543,65 @@ class TypingTestApp:
 
         self._set_input_enabled(False)
         self._set_editable(True)
+
+    def _log_stats_to_csv(self, wpm, accuracy, elapsed):
+        filename = "typing_stats.csv"
+        
+        fieldnames = [
+            'Timestamp', 'WPM', 'Accuracy %', 'TimeTaken', 'TestFile',
+            'MouseMovementTime', 'MouseClicks', 'MouseScrolls',
+            'TotalDuration', 'Backspaces'
+        ]
+
+        # Check if file needs a header
+        write_header = True
+        if os.path.isfile(filename):
+            try:
+                with open(filename, 'r', newline='', encoding='utf-8') as csvfile:
+                    reader = csv.reader(csvfile)
+                    header = next(reader)
+                    if header == fieldnames:
+                        write_header = False
+            except (StopIteration, IOError):
+                # File is empty or cannot be read, so we'll write a header
+                pass
+        
+        test_file = self.current_test_file if self.current_test_file else "Default Text"
+
+        try:
+            # Get stats from logger
+            mouse_move_time = self.logger.total_mouse_move_time
+            total_clicks = self.logger.left_click_count + self.logger.right_click_count
+            total_scrolls = (
+                self.logger.scroll_up_count + self.logger.scroll_down_count +
+                self.logger.scroll_left_count + self.logger.scroll_right_count
+            )
+            backspaces = self.logger.backspace_count
+            
+            total_duration = 0.0
+            if self.logger.first_key_time and self.logger.last_key_time:
+                total_duration = (self.logger.last_key_time - self.logger.first_key_time).total_seconds()
+
+            with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                if write_header:
+                    writer.writeheader()
+                
+                writer.writerow({
+                    'Timestamp': time.strftime("%Y-%m-%d %H:%M:%S"),
+                    'WPM': f"{wpm:.1f}",
+                    'Accuracy %': f"{accuracy:.1f}",
+                    'TimeTaken': f"{elapsed:.1f}",
+                    'TestFile': test_file,
+                    'MouseMovementTime': f"{mouse_move_time:.3f}",
+                    'MouseClicks': total_clicks,
+                    'MouseScrolls': total_scrolls,
+                    'TotalDuration': f"{total_duration:.3f}",
+                    'Backspaces': backspaces
+                })
+        except Exception as e:
+            messagebox.showerror("Logging Error", f"Failed to write to CSV log:\n{e}")
 
     def load_test(self):
         if self.test_running:
@@ -591,6 +655,7 @@ class TypingTestApp:
             except Exception as e:
                 messagebox.showerror("Load Error", f"Failed to load file:\n{e}")
                 return
+            self.current_test_file = fname
             self.test_text = content
             self._apply_text(self.test_text)
             self.status_var.set(f"Loaded: {fname}")
