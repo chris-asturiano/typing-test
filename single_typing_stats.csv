@@ -1,2 +1,5 @@
 Timestamp,Participant,GroupNumber,WPM,Accuracy %,TimeTaken,TestFile,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
 2025-11-06 01:42:49,Default,N/A,115.0,100.0,31.7,TextA.txt,0.000,0,0,31.540,14
+2025-11-06 02:56:01,Default,N/A,28.9,99.7,120.0,SpreadsheetA.txt,2.214,0,0,120.000,37
+2025-11-06 02:56:19,Default,N/A,0.0,0.0,0.0,SpreadsheetA.txt,2.214,0,0,0.000,37
+2025-11-06 02:57:27,Default,N/A,56.0,100.0,61.9,SpreadsheetB.txt,0.000,0,0,61.900,39

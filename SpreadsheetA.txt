@@ -1,0 +1,8 @@
+Item    ID    Qty    Price    Total
+A102    18    24.50    =18*24.50
+B214    7    135.75    =7*135.75
+C330    15    49.99    =15*49.99
+Grand_Total    =18*24.50+7*135.75+15*49.99
+Tax_8%    =SUM(Grand_Total)*0.08
+Final_Total    =SUM(Grand_Total)+Tax_8%
+Average    =AVERAGE(24.50,135.75,49.99)
