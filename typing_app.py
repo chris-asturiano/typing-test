@@ -138,7 +138,18 @@ class TypingTestApp:
         self.top_text.tag_configure("correct", foreground="#16a34a")
         # Make mistakes highly visible: red background instead of red text
         self.top_text.tag_configure("incorrect", background="#fecaca")
-        self.top_text.tag_configure("current", background="#facc15")
+        # Old: highlighted current character. We'll switch to a caret indicator instead.
+        # self.top_text.tag_configure("current", background="#facc15")
+
+        # Create a caret overlay inside the target text widget
+        self._caret_color = "#0b9910"
+        self._caret_width = 2  # pixels
+        self._caret_y_offset = -12  # nudge up a bit for alignment
+        self._caret_x_offset = -12   # horizontal nudge if needed
+        self._caret_widget = tk.Frame(self.top_text, bg=self._caret_color, width=self._caret_width, height=0)
+        self._caret_visible = False
+        # Reposition caret on resize/reflow
+        self.top_text.bind("<Configure>", lambda e: self._reposition_caret())
 
         self.bottom_frame = ttk.LabelFrame(top, text="Type Here (The test starts when you start typing.)")
         self.bottom_frame.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
@@ -222,6 +233,9 @@ class TypingTestApp:
         self.top_text.tag_remove("correct", "1.0", tk.END)
         self.top_text.tag_remove("incorrect", "1.0", tk.END)
         self.top_text.tag_remove("current", "1.0", tk.END)
+        # Ensure caret is repositioned at the start when text is applied
+        self._current_pos = 0
+        self._reposition_caret()
         self.top_text.config(state=state)
 
     def _on_tab_insert(self, event):
@@ -407,12 +421,72 @@ class TypingTestApp:
         self._last_typed = typed
 
     def _move_current(self, pos: int, target_len: int):
-        prev_pos = getattr(self, "_current_pos", 0)
-        if 0 <= prev_pos < target_len:
-            self._tag_remove_specific("current", prev_pos, prev_pos + 1)
-        self._current_pos = pos
-        if 0 <= pos < target_len:
-            self._tag_add("current", pos, pos + 1)
+        # Update tracked caret position and reposition the overlay widget.
+        self._current_pos = max(0, min(pos, target_len))
+        self._reposition_caret(target_len)
+
+    def _reposition_caret(self, target_len: int | None = None):
+        """Place a thin caret at the current position in the top_text widget.
+        If the position is out of view or at end-of-text, compute a best-effort placement.
+        """
+        try:
+            if target_len is None:
+                # Infer target length from current content
+                target_len = len(self.top_text.get("1.0", "end-1c"))
+            pos = getattr(self, "_current_pos", 0)
+            pos = max(0, min(pos, target_len))
+
+            # Compute bbox at index; if None (e.g., end-of-text), use prev char + width
+            index = f"1.0+{pos}c"
+            bbox = self.top_text.bbox(index)
+            prev_index = None
+            if bbox is None and pos > 0:
+                prev_index = f"1.0+{pos-1}c"
+                prev_bbox = self.top_text.bbox(prev_index)
+                if prev_bbox is not None:
+                    x, y, w, h = prev_bbox
+                    bbox = (x + w, y, 0, h)
+                    index = prev_index  # for line metrics fallback
+            if bbox is None:
+                # Can't determine placement (likely not visible yet); hide caret
+                if self._caret_visible:
+                    self._caret_widget.place_forget()
+                    self._caret_visible = False
+                return
+
+            x_bbox, y_char, _w, h_char = bbox
+            # Prefer line metrics for vertical placement to avoid per-glyph variance
+            try:
+                dl = self.top_text.dlineinfo(index)
+            except Exception:
+                dl = None
+            if dl:
+                lx, y_line, lw, h_line, *_rest = dl
+                y = y_line
+                h = h_line if h_line else (h_char or self.mono_font.metrics("linespace"))
+                # Compute x using measured width from display line start to index
+                try:
+                    line_start = self.top_text.index(f"{index} linestart")
+                    seg = self.top_text.get(line_start, index)
+                    x = lx + self.mono_font.measure(seg)
+                except Exception:
+                    x = x_bbox
+            else:
+                y = y_char
+                h = h_char if h_char else self.mono_font.metrics("linespace")
+                x = x_bbox
+
+            # Place a thin vertical bar at the caret position
+            self._caret_widget.configure(width=self._caret_width, height=h)
+            self._caret_widget.place(x=x + self._caret_x_offset, y=y + self._caret_y_offset)
+            self._caret_visible = True
+        except Exception:
+            # On any error, hide caret to avoid leaving artifacts
+            try:
+                self._caret_widget.place_forget()
+            except Exception:
+                pass
+            self._caret_visible = False
 
     def _tag_add(self, tag: str, start_i: int, end_i: int):
         self.top_text.tag_add(tag, f"1.0+{start_i}c", f"1.0+{end_i}c")
@@ -425,6 +499,7 @@ class TypingTestApp:
         rng_end = f"1.0+{end_i}c"
         self.top_text.tag_remove("correct", rng_start, rng_end)
         self.top_text.tag_remove("incorrect", rng_start, rng_end)
+        # No longer using a 'current' highlight block; caret overlay is used instead.
         self.top_text.tag_remove("current", rng_start, rng_end)
 
     def _retag_full(self, typed: str, target: str):
