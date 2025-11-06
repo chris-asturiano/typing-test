@@ -734,3 +734,12 @@
 [2025-11-06 03:21:47.498] SUMMARY (CSV): 0.000,0,0,64.989,30
 [2025-11-06 03:21:47.498] === LOGGING STOPPED ===
 
+[2025-11-06 13:35:08.112] === LOGGING STARTED ===
+[2025-11-06 13:35:23.223] Total mouse movement time: 0.000 seconds
+[2025-11-06 13:35:23.225] Total mouse clicks: 7
+[2025-11-06 13:35:23.225] Total mouse scrolls: 0
+[2025-11-06 13:35:23.225] Total duration: 14.130 seconds
+[2025-11-06 13:35:23.225] Total backspaces: 0
+[2025-11-06 13:35:23.225] SUMMARY (CSV): 0.000,7,0,14.130,0
+[2025-11-06 13:35:23.225] === LOGGING STOPPED ===
+

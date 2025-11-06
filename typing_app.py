@@ -152,6 +152,8 @@ class TypingTestApp:
             relief=tk.SUNKEN,
             font=self.mono_font,
         )
+        # Bind key events to logger
+        self.input_text.bind("<Key>", self._on_key_for_logger, add=True)
         self.input_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
         self.input_text.bind("<KeyRelease>", self._on_input_changed)
@@ -266,6 +268,13 @@ class TypingTestApp:
         # Update highlighting after insertion
         self._on_input_changed()
         return "break"
+
+    def _on_key_for_logger(self, event):
+        """Pass key events to the logger"""
+        try:
+            self.logger.record_key_press(event.keysym)
+        except:
+            pass
 
     def _open_programming_settings(self):
         d = tk.Toplevel(self.root)

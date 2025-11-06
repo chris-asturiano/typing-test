@@ -1,4 +1,4 @@
-from pynput import keyboard, mouse
+from pynput import mouse
 from datetime import datetime
 import threading
 
@@ -21,6 +21,7 @@ class ActivityLogger:
         self.total_mouse_move_time = 0.0
         self.last_move_time = None
         self.movement_thread = None
+        self.mouse_listener = None
     
     def log_event(self, event):
         """Log an event with timestamp"""
@@ -56,7 +57,6 @@ class ActivityLogger:
     def stop_logging(self):
         """Stop logging session"""
         if self.is_logging:
-
             total_duration = ((self.last_key_time - self.first_key_time).total_seconds() if self.first_key_time and self.last_key_time else 0.0)
 
             total_clicks = self.left_click_count + self.right_click_count
@@ -86,39 +86,27 @@ class ActivityLogger:
 
             print("Logging stopped.")
     
-    def on_key_press(self, key):
-        """Handle key press events"""
-        try:
-            
-            if self.is_logging:
-                now = datetime.now()
-
-                if not self.first_key_time:
-                    self.first_key_time = now
-                self.last_key_time = now
-
-                if key == keyboard.Key.backspace:
-                    self.backspace_count += 1
-
-                try:
-                    key_name = key.char
-                except AttributeError:
-                    key_name = str(key).replace('Key.', '')
-
-                # self.log_event(f"Key pressed: {key_name}")
+    def record_key_press(self, key_name):
+        """Record a key press (called from Tkinter)"""
+        if not self.is_logging:
+            return
         
-        except Exception as e:
-            print(f"Error in key press handler: {e}")
+        now = datetime.now()
+        
+        if not self.first_key_time:
+            self.first_key_time = now
+        self.last_key_time = now
+        
+        if key_name.lower() == 'backspace':
+            self.backspace_count += 1
     
     def on_click(self, x, y, button, pressed):
         """Handle mouse click events"""
         if pressed and self.is_logging:
             if button == mouse.Button.left:
                 self.left_click_count += 1
-                #self.log_event("Mouse click: LEFT")
             elif button == mouse.Button.right:
                 self.right_click_count += 1
-                #self.log_event("Mouse click: RIGHT")
 
     def on_move(self, x, y):
         """Track mouse movement duration"""
@@ -127,14 +115,12 @@ class ActivityLogger:
         
         now = datetime.now()
 
-        # if first key isn't pressed yet, mouse movement is first activity
         if not self.first_key_time:
             self.first_key_time = now
 
         if not self.is_moving:
             self.is_moving = True
             self.move_start_time = now
-            # self.log_event("Mouse started moving")
         self.last_move_time = now
         self.last_key_time = now
 
@@ -163,47 +149,40 @@ class ActivityLogger:
             self.scroll_left_count += 1
             direction.append("LEFT")
 
-        # if direction:
-        #     self.log_event(f"Mouse scrolled: {'/'.join(direction)}")
-
     def monitor_movement(self):
         """Background thread to detect when movement stops"""
         while True:
             if self.is_logging and self.is_moving and self.last_move_time:
                 now = datetime.now()
-                # If pointer hasn’t moved for 0.5s, stop counting
                 if (now - self.last_move_time).total_seconds() > 0.5:
                     move_end = self.last_move_time
                     duration = (move_end - self.move_start_time).total_seconds()
                     self.total_mouse_move_time += duration
-                    # self.log_event(f"Mouse stopped moving (duration: {duration:.3f}s)")
                     self.is_moving = False
-            threading.Event().wait(0.2)  # check ~5x per second
+            threading.Event().wait(0.2)
 
     def run(self):
-        """Start the logger"""
-        print("Activity Logger started!")
-
-        keyboard_listener = keyboard.Listener(on_press=self.on_key_press)
-        mouse_listener = mouse.Listener(
+        """Start the logger (only mouse events)"""
+        print("Activity Logger started (mouse only)!")
+        
+        self.mouse_listener = mouse.Listener(
             on_click=self.on_click,
             on_move=self.on_move,
             on_scroll=self.on_scroll
         )
 
-        keyboard_listener.start()
-        mouse_listener.start()
+        self.mouse_listener.start()
 
         # Start background movement monitor
         self.movement_thread = threading.Thread(target=self.monitor_movement, daemon=True)
         self.movement_thread.start()
 
-        try:
-            keyboard_listener.join()
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            self.stop_logging()
-
 if __name__ == "__main__":
     logger = ActivityLogger()
     logger.run()
+    try:
+        import time
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nExiting...")
