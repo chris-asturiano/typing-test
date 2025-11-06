@@ -144,8 +144,8 @@ class TypingTestApp:
         # Create a caret overlay inside the target text widget
         self._caret_color = "#0b9910"
         self._caret_width = 2  # pixels
-        self._caret_y_offset = -8  # nudge up a bit for alignment
-        self._caret_x_offset = -10   # horizontal nudge if needed
+        self._caret_y_offset = -12  # nudge up a bit for alignment
+        self._caret_x_offset = -12   # horizontal nudge if needed
         self._caret_widget = tk.Frame(self.top_text, bg=self._caret_color, width=self._caret_width, height=0)
         self._caret_visible = False
         # Reposition caret on resize/reflow
