@@ -546,17 +546,30 @@ class TypingTestApp:
 
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
-        n = min(len(typed), len(target))
-        correct = sum(1 for i in range(n) if typed[i] == target[i])
+        
+        # Old metrics
+        n_old = min(len(typed), len(target))
+        correct_old = sum(1 for i in range(n_old) if typed[i] == target[i])
         total_typed = len(typed)
-        accuracy = (correct / total_typed * 100.0) if total_typed > 0 else 0.0
+        accuracy = (correct_old / total_typed * 100.0) if total_typed > 0 else 0.0
         minutes = max(elapsed, 1e-9) / 60.0
-        wpm = (correct / 5.0) / minutes if minutes > 0 else 0.0
+        wpm = (correct_old / 5.0) / minutes if minutes > 0 else 0.0
 
-        self.wpm_var.set(f"WPM: {wpm:.1f}")
-        self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
-        self.time_taken_var.set(f"Time: {elapsed:.1f}s")
-        self.status_var.set("Stopped")
+        # New Total Error Rate Metrics
+        correct_chars = 0
+        incorrect_not_fixed = 0
+        incorrect_fixed = self.logger.backspace_count
+
+        n = min(len(typed), len(target))
+        for i in range(n):
+            if typed[i] == target[i]:
+                correct_chars += 1
+            else:
+                incorrect_not_fixed += 1
+        
+        total_keystrokes = correct_chars + incorrect_not_fixed + incorrect_fixed
+        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes * 100.0) if total_keystrokes > 0 else 0.0
+
         self.wpm_var.set(f"WPM: {wpm:.1f}")
         self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
@@ -576,7 +589,10 @@ class TypingTestApp:
         if self.logger.first_key_time and self.logger.last_key_time:
             total_duration = (self.logger.last_key_time - self.logger.first_key_time).total_seconds()
 
-        self._log_single_test_stats_to_separate_csv(wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces)
+        self._log_single_test_stats_to_separate_csv(
+            wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces,
+            total_error_rate, correct_chars, incorrect_fixed, incorrect_not_fixed
+        )
         self._set_input_enabled(False)
         self._set_editable(True)
 
@@ -598,14 +614,29 @@ class TypingTestApp:
 
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
-        n = min(len(typed), len(target))
-        correct = sum(1 for i in range(n) if typed[i] == target[i])
-        total_typed = len(typed)
-        accuracy = (correct / total_typed * 100.0) if total_typed > 0 else 0.0
-        error_rate = (100.0 - accuracy) if total_typed > 0 else 0.0
 
+        # Old metrics for display and backward compatibility
+        n_old = min(len(typed), len(target))
+        correct_old = sum(1 for i in range(n_old) if typed[i] == target[i])
+        total_typed = len(typed)
+        accuracy = (correct_old / total_typed * 100.0) if total_typed > 0 else 0.0
         minutes = max(elapsed, 1e-9) / 60.0
-        wpm = (correct / 5.0) / minutes if minutes > 0 else 0.0
+        wpm = (correct_old / 5.0) / minutes if minutes > 0 else 0.0
+
+        # New Total Error Rate Metrics
+        correct_chars = 0
+        incorrect_not_fixed = 0
+        incorrect_fixed = self.logger.backspace_count
+
+        n = min(len(typed), len(target))
+        for i in range(n):
+            if typed[i] == target[i]:
+                correct_chars += 1
+            else:
+                incorrect_not_fixed += 1
+        
+        total_keystrokes = correct_chars + incorrect_not_fixed + incorrect_fixed
+        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes * 100.0) if total_keystrokes > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
@@ -644,14 +675,21 @@ class TypingTestApp:
             key_prefix = f"{csv_task_prefix}_{current_keyboard.replace('%', '')}"
             self.experiment_results[f"{key_prefix}_WPM"] = f"{wpm:.1f}"
             self.experiment_results[f"{key_prefix}_Accuracy"] = f"{accuracy:.1f}"
-            self.experiment_results[f"{key_prefix}_ErrorRate"] = f"{error_rate:.1f}"
+            self.experiment_results[f"{key_prefix}_ErrorRate"] = f"{total_error_rate:.1f}"
             self.experiment_results[f"{key_prefix}_MouseTime"] = f"{mouse_move_time:.3f}"
             self.experiment_results[f"{key_prefix}_Clicks"] = total_clicks
             self.experiment_results[f"{key_prefix}_Backspaces"] = backspaces
             self.experiment_results[f"{key_prefix}_Scrolls"] = total_scrolls
             self.experiment_results[f"{key_prefix}_TotalTime"] = f"{elapsed:.3f}"
+            # Store new detailed metrics
+            self.experiment_results[f"{key_prefix}_CorrectChars"] = correct_chars
+            self.experiment_results[f"{key_prefix}_IncorrectFixed"] = incorrect_fixed
+            self.experiment_results[f"{key_prefix}_IncorrectNotFixed"] = incorrect_not_fixed
         else:
-            self._log_single_test_stats_to_separate_csv(wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces)
+            self._log_single_test_stats_to_separate_csv(
+                wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces,
+                total_error_rate, correct_chars, incorrect_fixed, incorrect_not_fixed
+            )
 
         # Stop the activity logger when the test ends (completed or time up)
         try:
@@ -665,11 +703,13 @@ class TypingTestApp:
         if self.experiment_running:
             self.root.after(100, self._handle_experiment_continuation)
 
-    def _log_single_test_stats_to_separate_csv(self, wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces):
+    def _log_single_test_stats_to_separate_csv(self, wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces,
+                                             total_error_rate, correct_chars, incorrect_fixed, incorrect_not_fixed):
         filename = "single_typing_stats.csv"
         
         fieldnames = [
-            'Timestamp', 'Participant', 'GroupNumber', 'WPM', 'Accuracy %', 'TimeTaken', 'TestFile',
+            'Timestamp', 'Participant', 'GroupNumber', 'WPM', 'Accuracy %', 'TotalErrorRate', 'TimeTaken', 'TestFile',
+            'CorrectChars', 'IncorrectFixed', 'IncorrectNotFixed',
             'MouseMovementTime', 'MouseClicks', 'MouseScrolls',
             'TotalDuration', 'Backspaces'
         ]
@@ -715,8 +755,12 @@ class TypingTestApp:
                     'GroupNumber': self.experiment_group if self.experiment_group else "N/A", 
                     'WPM': f"{wpm:.1f}",
                     'Accuracy %': f"{accuracy:.1f}",
+                    'TotalErrorRate': f"{total_error_rate:.1f}",
                     'TimeTaken': f"{elapsed:.1f}",
                     'TestFile': test_file,
+                    'CorrectChars': correct_chars,
+                    'IncorrectFixed': incorrect_fixed,
+                    'IncorrectNotFixed': incorrect_not_fixed,
                     'MouseMovementTime': f"{mouse_move_time:.3f}",
                     'MouseClicks': total_clicks,
                     'MouseScrolls': total_scrolls,
@@ -732,12 +776,12 @@ class TypingTestApp:
         # Define fieldnames based on the dummy CSV, excluding 'Task_Variant'
         fieldnames = [
             'Participant', 'GroupNumber',
-            'Text_60_WPM', 'Text_60_Accuracy', 'Text_60_ErrorRate', 'Text_60_MouseTime', 'Text_60_Clicks', 'Text_60_Backspaces', 'Text_60_Scrolls', 'Text_60_TotalTime',
-            'Num_60_WPM', 'Num_60_Accuracy', 'Num_60_ErrorRate', 'Num_60_MouseTime', 'Num_60_Clicks', 'Num_60_Backspaces', 'Num_60_Scrolls', 'Num_60_TotalTime',
-            'Prog_60_WPM', 'Prog_60_Accuracy', 'Prog_60_ErrorRate', 'Prog_60_MouseTime', 'Prog_60_Clicks', 'Prog_60_Backspaces', 'Prog_60_Scrolls', 'Prog_60_TotalTime',
-            'Text_100_WPM', 'Text_100_Accuracy', 'Text_100_ErrorRate', 'Text_100_MouseTime', 'Text_100_Clicks', 'Text_100_Backspaces', 'Text_100_Scrolls', 'Text_100_TotalTime',
-            'Num_100_WPM', 'Num_100_Accuracy', 'Num_100_ErrorRate', 'Num_100_MouseTime', 'Num_100_Clicks', 'Num_100_Backspaces', 'Num_100_Scrolls', 'Num_100_TotalTime',
-            'Prog_100_WPM', 'Prog_100_Accuracy', 'Prog_100_ErrorRate', 'Prog_100_MouseTime', 'Prog_100_Clicks', 'Prog_100_Backspaces', 'Prog_100_Scrolls', 'Prog_100_TotalTime'
+            'Text_60_WPM', 'Text_60_Accuracy', 'Text_60_ErrorRate', 'Text_60_MouseTime', 'Text_60_Clicks', 'Text_60_Backspaces', 'Text_60_Scrolls', 'Text_60_TotalTime', 'Text_60_CorrectChars', 'Text_60_IncorrectFixed', 'Text_60_IncorrectNotFixed',
+            'Num_60_WPM', 'Num_60_Accuracy', 'Num_60_ErrorRate', 'Num_60_MouseTime', 'Num_60_Clicks', 'Num_60_Backspaces', 'Num_60_Scrolls', 'Num_60_TotalTime', 'Num_60_CorrectChars', 'Num_60_IncorrectFixed', 'Num_60_IncorrectNotFixed',
+            'Prog_60_WPM', 'Prog_60_Accuracy', 'Prog_60_ErrorRate', 'Prog_60_MouseTime', 'Prog_60_Clicks', 'Prog_60_Backspaces', 'Prog_60_Scrolls', 'Prog_60_TotalTime', 'Prog_60_CorrectChars', 'Prog_60_IncorrectFixed', 'Prog_60_IncorrectNotFixed',
+            'Text_100_WPM', 'Text_100_Accuracy', 'Text_100_ErrorRate', 'Text_100_MouseTime', 'Text_100_Clicks', 'Text_100_Backspaces', 'Text_100_Scrolls', 'Text_100_TotalTime', 'Text_100_CorrectChars', 'Text_100_IncorrectFixed', 'Text_100_IncorrectNotFixed',
+            'Num_100_WPM', 'Num_100_Accuracy', 'Num_100_ErrorRate', 'Num_100_MouseTime', 'Num_100_Clicks', 'Num_100_Backspaces', 'Num_100_Scrolls', 'Num_100_TotalTime', 'Num_100_CorrectChars', 'Num_100_IncorrectFixed', 'Num_100_IncorrectNotFixed',
+            'Prog_100_WPM', 'Prog_100_Accuracy', 'Prog_100_ErrorRate', 'Prog_100_MouseTime', 'Prog_100_Clicks', 'Prog_100_Backspaces', 'Prog_100_Scrolls', 'Prog_100_TotalTime', 'Prog_100_CorrectChars', 'Prog_100_IncorrectFixed', 'Prog_100_IncorrectNotFixed'
         ]
 
         write_header = True
