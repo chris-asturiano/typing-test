@@ -29,6 +29,11 @@ class TypingTestApp:
         self.current_test_file = "Default Text"
         self.current_test_display_var = tk.StringVar(value="Test: Default Text")
 
+        # Real-time accuracy tracking
+        self.total_raw_keystrokes = 0
+        self.correct_raw_keystrokes = 0
+        self.incorrect_raw_keystrokes = 0 # Includes characters typed incorrectly, even if later corrected
+
         # Experiment state
         self.experiment_running = False
         self.experiment_group = None
@@ -342,6 +347,11 @@ class TypingTestApp:
             self._programmatic_edit = True
             delete_prev_word(self.input_text)
             self._programmatic_edit = False
+            # When a word is deleted, we need to adjust our raw keystroke counts
+            # This is a simplification: we'll decrement total_raw_keystrokes by the length of the deleted word
+            # and reset correct/incorrect counts for that segment.
+            # A more precise approach would require tracking each character's correctness individually.
+            # For now, we'll just re-evaluate the current typed string for accuracy display.
             self._on_input_changed()
             return "break"
         if widget == self.top_text and not self.test_running:
@@ -365,16 +375,70 @@ class TypingTestApp:
 
         target = self.test_text
         typed = self.input_text.get("1.0", "end-1c")
+        prev_typed = self._last_typed # Get the previous state of the input
 
         if not self.timer_running and typed:
             self._start_timer()
 
+        # Update raw keystroke counts based on the change
+        if len(typed) > len(prev_typed): # Character added
+            new_char_index = len(prev_typed)
+            if new_char_index < len(target):
+                self.total_raw_keystrokes += 1
+                if typed[new_char_index] == target[new_char_index]:
+                    self.correct_raw_keystrokes += 1
+                else:
+                    self.incorrect_raw_keystrokes += 1
+            else: # Typed beyond target length
+                self.total_raw_keystrokes += 1
+                self.incorrect_raw_keystrokes += 1 # All extra characters are incorrect
+
+        elif len(typed) < len(prev_typed): # Character deleted (backspace)
+            # The logger already counts backspaces.
+            # For accuracy calculation, we need to consider the impact of deleting a character.
+            # A simple approach is to decrement total_raw_keystrokes and adjust correct/incorrect counts
+            # based on the character that was deleted.
+            deleted_char_index = len(typed)
+            if deleted_char_index < len(target):
+                # If the deleted character was correct, decrement correct_raw_keystrokes
+                if prev_typed[deleted_char_index] == target[deleted_char_index]:
+                    self.correct_raw_keystrokes = max(0, self.correct_raw_keystrokes - 1)
+                else: # If it was incorrect, decrement incorrect_raw_keystrokes
+                    self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
+            else: # Deleted a character that was typed beyond target length
+                self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
+            self.total_raw_keystrokes = max(0, self.total_raw_keystrokes - 1) # Decrement total for the deleted char
+
         # Allow typing beyond target; extra characters will not match and prevent completion
 
         self._update_highlighting_fast(typed, target)
+        self._update_metrics_display(typed, target) # Update display in real-time
 
         if typed == target:
             self._end_test(finished=True)
+
+    def _update_metrics_display(self, typed: str, target: str):
+        """Updates WPM and Accuracy display in real-time."""
+        if self.start_time is None:
+            return
+
+        elapsed = time.time() - self.start_time
+        if elapsed < 1.0: # Avoid division by zero or very large WPM/Acc at start
+            return
+
+        # WPM calculation: (Correct characters typed / 5) / minutes
+        # Use correct_raw_keystrokes for WPM
+        minutes = elapsed / 60.0
+        wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
+        self.wpm_var.set(f"WPM: {wpm:.1f}")
+
+        # Accuracy calculation: (Correct Keystrokes / Total Keystrokes) * 100%
+        # Total Keystrokes = correct_raw_keystrokes + incorrect_raw_keystrokes + backspace_count
+        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
+        self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
+        self.time_taken_var.set(f"Time: {elapsed:.1f}s")
+
 
     def _update_highlighting(self, typed: str, target: str):
         state = self.top_text.cget("state")
@@ -415,6 +479,7 @@ class TypingTestApp:
             self._tag_remove_range(i, i + 1)
             self._move_current(i, len(target))
         else:
+            # Fallback for non-incremental changes (e.g., paste, word delete)
             self._retag_full(typed, target)
 
         self.top_text.config(state=state)
@@ -582,6 +647,11 @@ class TypingTestApp:
         self.test_running = False
         self.timer_running = False
 
+        # Reset real-time accuracy tracking variables
+        self.total_raw_keystrokes = 0
+        self.correct_raw_keystrokes = 0
+        self.incorrect_raw_keystrokes = 0
+
         # reset incremental-highlighting state
         self._last_typed = ""
         self._current_pos = 0
@@ -622,31 +692,27 @@ class TypingTestApp:
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
         
-        # Old metrics
-        n_old = min(len(typed), len(target))
-        correct_old = sum(1 for i in range(n_old) if typed[i] == target[i])
-        total_typed = len(typed)
-        accuracy = (correct_old / total_typed * 100.0) if total_typed > 0 else 0.0
+        # Calculate WPM based on correct raw keystrokes
         minutes = max(elapsed, 1e-9) / 60.0
-        wpm = (correct_old / 5.0) / minutes if minutes > 0 else 0.0
+        wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
 
-        # New Total Error Rate Metrics
-        correct_chars = 0
-        incorrect_not_fixed = 0
-        incorrect_fixed = self.logger.backspace_count
+        # Calculate Accuracy based on all keystrokes (correct, incorrect, and backspaces)
+        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
 
-        n = min(len(typed), len(target))
-        for i in range(n):
-            if typed[i] == target[i]:
-                correct_chars += 1
-            else:
-                incorrect_not_fixed += 1
-        
-        total_keystrokes = correct_chars + incorrect_not_fixed + incorrect_fixed
-        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes * 100.0) if total_keystrokes > 0 else 0.0
+        # Total Error Rate Metrics (re-using existing logic, but ensuring consistency with new accuracy)
+        # correct_chars here refers to the final correct characters in the typed string
+        correct_chars_final = sum(1 for i in range(min(len(typed), len(target))) if typed[i] == target[i])
+        incorrect_not_fixed = sum(1 for i in range(min(len(typed), len(target))) if typed[i] != target[i])
+        incorrect_fixed = self.logger.backspace_count # Backspaces are considered fixed errors
+
+        # Total keystrokes for error rate calculation might be different from accuracy's total_effective_keystrokes
+        # Let's use the definition from the original code for total_error_rate
+        total_keystrokes_for_error_rate = correct_chars_final + incorrect_not_fixed + incorrect_fixed
+        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes_for_error_rate * 100.0) if total_keystrokes_for_error_rate > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
-        self.acc_var.set(f"Accuracy %: {accuracy:.1f}%")
+        self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
         self.status_var.set("Stopped")
         self._update_status_color("stopped")
@@ -666,7 +732,7 @@ class TypingTestApp:
 
         self._log_single_test_stats_to_separate_csv(
             wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces,
-            total_error_rate, correct_chars, incorrect_fixed, incorrect_not_fixed
+            total_error_rate, correct_chars_final, incorrect_fixed, incorrect_not_fixed
         )
         self._set_input_enabled(False)
         self._set_editable(True)
@@ -690,28 +756,21 @@ class TypingTestApp:
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
 
-        # Old metrics for display and backward compatibility
-        n_old = min(len(typed), len(target))
-        correct_old = sum(1 for i in range(n_old) if typed[i] == target[i])
-        total_typed = len(typed)
-        accuracy = (correct_old / total_typed * 100.0) if total_typed > 0 else 0.0
+        # Calculate WPM based on correct raw keystrokes
         minutes = max(elapsed, 1e-9) / 60.0
-        wpm = (correct_old / 5.0) / minutes if minutes > 0 else 0.0
+        wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
 
-        # New Total Error Rate Metrics
-        correct_chars = 0
-        incorrect_not_fixed = 0
-        incorrect_fixed = self.logger.backspace_count
+        # Calculate Accuracy based on all keystrokes (correct, incorrect, and backspaces)
+        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
 
-        n = min(len(typed), len(target))
-        for i in range(n):
-            if typed[i] == target[i]:
-                correct_chars += 1
-            else:
-                incorrect_not_fixed += 1
+        # Total Error Rate Metrics (re-using existing logic, but ensuring consistency with new accuracy)
+        correct_chars_final = sum(1 for i in range(min(len(typed), len(target))) if typed[i] == target[i])
+        incorrect_not_fixed = sum(1 for i in range(min(len(typed), len(target))) if typed[i] != target[i])
+        incorrect_fixed = self.logger.backspace_count # Backspaces are considered fixed errors
         
-        total_keystrokes = correct_chars + incorrect_not_fixed + incorrect_fixed
-        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes * 100.0) if total_keystrokes > 0 else 0.0
+        total_keystrokes_for_error_rate = correct_chars_final + incorrect_not_fixed + incorrect_fixed
+        total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes_for_error_rate * 100.0) if total_keystrokes_for_error_rate > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
@@ -757,13 +816,13 @@ class TypingTestApp:
             self.experiment_results[f"{key_prefix}_Scrolls"] = total_scrolls
             self.experiment_results[f"{key_prefix}_TotalTime"] = f"{elapsed:.3f}"
             # Store new detailed metrics
-            self.experiment_results[f"{key_prefix}_CorrectChars"] = correct_chars
+            self.experiment_results[f"{key_prefix}_CorrectChars"] = correct_chars_final
             self.experiment_results[f"{key_prefix}_IncorrectFixed"] = incorrect_fixed
             self.experiment_results[f"{key_prefix}_IncorrectNotFixed"] = incorrect_not_fixed
         else:
             self._log_single_test_stats_to_separate_csv(
                 wpm, accuracy, elapsed, mouse_move_time, total_clicks, total_scrolls, backspaces,
-                total_error_rate, correct_chars, incorrect_fixed, incorrect_not_fixed
+                total_error_rate, correct_chars_final, incorrect_fixed, incorrect_not_fixed
             )
 
         # Stop the activity logger when the test ends (completed or time up)
