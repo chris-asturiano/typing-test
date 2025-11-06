@@ -8,3 +8,11 @@ Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFi
 2025-11-06 15:23:34,Default,N/A,75.2,100.0,7.6,13.6,Default Text,85,7,0,0.000,0,0,13.558,7
 Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
 2025-11-06 16:11:31,Default,N/A,40.3,100.0,15.8,25.3,Default Text,85,16,0,0.000,0,0,25.316,16
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-07 03:34:21,Default,N/A,52.2,90.4,9.6,19.5,Default Text,85,9,0,1.685,2,0,19.543,9
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-07 03:41:33,Default,N/A,0.0,0.0,0.0,0.0,Default Text,0,0,0,0.000,1,0,0.000,0
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-07 03:42:25,Default,N/A,0.0,0.0,0.0,0.0,Default Text,0,0,0,0.000,1,0,0.000,0
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-07 03:43:41,Default,N/A,86.9,95.2,4.3,30.2,TextA.txt,220,10,0,0.000,2,0,30.249,10
