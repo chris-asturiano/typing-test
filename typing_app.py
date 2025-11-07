@@ -149,8 +149,8 @@ class TypingTestApp:
         # Initialize and keep a caret overlay aligned to current index
         self._init_caret()
         # Fine-tuning pixel offsets for caret alignment
-        self.caret_offset_x = -10
-        self.caret_offset_y = -8
+        self.caret_offset_x = -12
+        self.caret_offset_y = -12
         self.top_text.bind(
             "<Configure>",
             lambda e: self._update_caret_position(
