@@ -32,7 +32,7 @@ class TypingTestApp:
         # Real-time accuracy tracking
         self.total_raw_keystrokes = 0
         self.correct_raw_keystrokes = 0
-        self.incorrect_raw_keystrokes = 0 # Includes characters typed incorrectly, even if later corrected
+        self.incorrect_raw_keystrokes = 0  # Incorrect chars, even if later corrected
 
         # Experiment state
         self.experiment_running = False
@@ -143,18 +143,21 @@ class TypingTestApp:
         self.top_text.tag_configure("correct", foreground="#16a34a")
         # Make mistakes highly visible: red background instead of red text
         self.top_text.tag_configure("incorrect", background="#fecaca")
-        # Old: highlighted current character. We'll switch to a caret indicator instead.
-        # self.top_text.tag_configure("current", background="#facc15")
+        # Disable background for current; use a thin caret overlay instead
+        self.top_text.tag_configure("current", background="")
 
-        # Create a caret overlay inside the target text widget
-        self._caret_color = "#0b9910"
-        self._caret_width = 2  # pixels
-        self._caret_y_offset = -12  # nudge up a bit for alignment
-        self._caret_x_offset = -12   # horizontal nudge if needed
-        self._caret_widget = tk.Frame(self.top_text, bg=self._caret_color, width=self._caret_width, height=0)
-        self._caret_visible = False
-        # Reposition caret on resize/reflow
-        self.top_text.bind("<Configure>", lambda e: self._reposition_caret())
+        # Initialize and keep a caret overlay aligned to current index
+        self._init_caret()
+        # Fine-tuning pixel offsets for caret alignment
+        self.caret_offset_x = -12
+        self.caret_offset_y = -12
+        self.top_text.bind(
+            "<Configure>",
+            lambda e: self._update_caret_position(
+                getattr(self, "_current_pos", 0),
+                len(getattr(self, "test_text", self.top_text.get("1.0", "end-1c")))
+            ),
+        )
 
         self.bottom_frame = ttk.LabelFrame(top, text="Type Here (The test starts when you start typing.)")
         self.bottom_frame.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
@@ -238,10 +241,11 @@ class TypingTestApp:
         self.top_text.tag_remove("correct", "1.0", tk.END)
         self.top_text.tag_remove("incorrect", "1.0", tk.END)
         self.top_text.tag_remove("current", "1.0", tk.END)
-        # Ensure caret is repositioned at the start when text is applied
-        self._current_pos = 0
-        self._reposition_caret()
         self.top_text.config(state=state)
+        try:
+            self._update_caret_position(0, len(text))
+        except Exception:
+            pass
 
     def _on_tab_insert(self, event):
         w = event.widget
@@ -347,11 +351,6 @@ class TypingTestApp:
             self._programmatic_edit = True
             delete_prev_word(self.input_text)
             self._programmatic_edit = False
-            # When a word is deleted, we need to adjust our raw keystroke counts
-            # This is a simplification: we'll decrement total_raw_keystrokes by the length of the deleted word
-            # and reset correct/incorrect counts for that segment.
-            # A more precise approach would require tracking each character's correctness individually.
-            # For now, we'll just re-evaluate the current typed string for accuracy display.
             self._on_input_changed()
             return "break"
         if widget == self.top_text and not self.test_running:
@@ -375,70 +374,65 @@ class TypingTestApp:
 
         target = self.test_text
         typed = self.input_text.get("1.0", "end-1c")
-        prev_typed = self._last_typed # Get the previous state of the input
+        prev_typed = getattr(self, "_last_typed", "")
 
         if not self.timer_running and typed:
             self._start_timer()
 
-        # Update raw keystroke counts based on the change
-        if len(typed) > len(prev_typed): # Character added
-            new_char_index = len(prev_typed)
-            if new_char_index < len(target):
-                self.total_raw_keystrokes += 1
-                if typed[new_char_index] == target[new_char_index]:
-                    self.correct_raw_keystrokes += 1
-                else:
-                    self.incorrect_raw_keystrokes += 1
-            else: # Typed beyond target length
-                self.total_raw_keystrokes += 1
-                self.incorrect_raw_keystrokes += 1 # All extra characters are incorrect
-
-        elif len(typed) < len(prev_typed): # Character deleted (backspace)
-            # The logger already counts backspaces.
-            # For accuracy calculation, we need to consider the impact of deleting a character.
-            # A simple approach is to decrement total_raw_keystrokes and adjust correct/incorrect counts
-            # based on the character that was deleted.
-            deleted_char_index = len(typed)
-            if deleted_char_index < len(target):
-                # If the deleted character was correct, decrement correct_raw_keystrokes
-                if prev_typed[deleted_char_index] == target[deleted_char_index]:
-                    self.correct_raw_keystrokes = max(0, self.correct_raw_keystrokes - 1)
-                else: # If it was incorrect, decrement incorrect_raw_keystrokes
-                    self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
-            else: # Deleted a character that was typed beyond target length
-                self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
-            self.total_raw_keystrokes = max(0, self.total_raw_keystrokes - 1) # Decrement total for the deleted char
-
         # Allow typing beyond target; extra characters will not match and prevent completion
 
+        # Update raw keystroke counters based on diff
+        try:
+            prev_len = len(prev_typed)
+            new_len = len(typed)
+            if new_len > prev_len:
+                # Characters added (supports multi-char paste)
+                for i in range(prev_len, new_len):
+                    if i < len(target):
+                        self.total_raw_keystrokes += 1
+                        if typed[i] == target[i]:
+                            self.correct_raw_keystrokes += 1
+                        else:
+                            self.incorrect_raw_keystrokes += 1
+                    else:
+                        self.total_raw_keystrokes += 1
+                        self.incorrect_raw_keystrokes += 1
+            elif new_len < prev_len:
+                # Characters deleted (supports word delete)
+                for i in range(new_len, prev_len):
+                    if i < len(target):
+                        if prev_typed[i] == target[i]:
+                            self.correct_raw_keystrokes = max(0, self.correct_raw_keystrokes - 1)
+                        else:
+                            self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
+                    else:
+                        self.incorrect_raw_keystrokes = max(0, self.incorrect_raw_keystrokes - 1)
+                self.total_raw_keystrokes = max(0, self.total_raw_keystrokes - (prev_len - new_len))
+        except Exception:
+            pass
+
         self._update_highlighting_fast(typed, target)
-        self._update_metrics_display(typed, target) # Update display in real-time
+        self._update_metrics_display(typed, target)
 
         if typed == target:
             self._end_test(finished=True)
 
     def _update_metrics_display(self, typed: str, target: str):
-        """Updates WPM and Accuracy display in real-time."""
+        """Update live WPM/Accuracy based on raw keystrokes."""
         if self.start_time is None:
             return
-
         elapsed = time.time() - self.start_time
-        if elapsed < 1.0: # Avoid division by zero or very large WPM/Acc at start
+        if elapsed < 1.0:
             return
-
-        # WPM calculation: (Correct characters typed / 5) / minutes
-        # Use correct_raw_keystrokes for WPM
         minutes = elapsed / 60.0
         wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
         self.wpm_var.set(f"WPM: {wpm:.1f}")
-
-        # Accuracy calculation: (Correct Keystrokes / Total Keystrokes) * 100%
-        # Total Keystrokes = correct_raw_keystrokes + incorrect_raw_keystrokes + backspace_count
-        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
-        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
-        self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
+        total_effective_keystrokes = (
+            self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        )
+        acc = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
+        self.acc_var.set(f"Accuracy: {acc:.1f}%")
         self.time_taken_var.set(f"Time: {elapsed:.1f}s")
-
 
     def _update_highlighting(self, typed: str, target: str):
         state = self.top_text.cget("state")
@@ -479,79 +473,63 @@ class TypingTestApp:
             self._tag_remove_range(i, i + 1)
             self._move_current(i, len(target))
         else:
-            # Fallback for non-incremental changes (e.g., paste, word delete)
             self._retag_full(typed, target)
 
         self.top_text.config(state=state)
         self._last_typed = typed
 
     def _move_current(self, pos: int, target_len: int):
-        # Update tracked caret position and reposition the overlay widget.
-        self._current_pos = max(0, min(pos, target_len))
-        self._reposition_caret(target_len)
-
-    def _reposition_caret(self, target_len: int | None = None):
-        """Place a thin caret at the current position in the top_text widget.
-        If the position is out of view or at end-of-text, compute a best-effort placement.
-        """
+        prev_pos = getattr(self, "_current_pos", 0)
+        if 0 <= prev_pos < target_len:
+            self._tag_remove_specific("current", prev_pos, prev_pos + 1)
+        self._current_pos = pos
+        if 0 <= pos < target_len:
+            self._tag_add("current", pos, pos + 1)
+        # Keep the thin caret aligned
         try:
-            if target_len is None:
-                # Infer target length from current content
-                target_len = len(self.top_text.get("1.0", "end-1c"))
-            pos = getattr(self, "_current_pos", 0)
-            pos = max(0, min(pos, target_len))
+            self._update_caret_position(pos, target_len)
+        except Exception:
+            pass
 
-            # Compute bbox at index; if None (e.g., end-of-text), use prev char + width
+    def _init_caret(self):
+        """Create a thin vertical caret overlay inside the target text widget."""
+        try:
+            self._caret_color = "#237a28"
+            self._caret_width = 2
+            self._caret = tk.Frame(
+                self.top_text, width=self._caret_width, bg=self._caret_color, highlightthickness=0, bd=0
+            )
+            self._caret.place_forget()
+        except Exception:
+            self._caret = None
+
+    def _update_caret_position(self, pos: int, target_len: int):
+        if not hasattr(self, "_caret") or self._caret is None:
+            return
+        if target_len <= 0:
+            self._caret.place_forget()
+            return
+
+        def place_from_bbox(bbox, offset_x=0):
+            if not bbox:
+                self._caret.place_forget()
+                return
+            x, y, w, h = bbox
+            offx = getattr(self, "caret_offset_x", 0)
+            offy = getattr(self, "caret_offset_y", 0)
+            self._caret.place(x=x + offset_x + offx, y=y + offy, width=getattr(self, "_caret_width", 2), height=h)
+
+        if 0 <= pos < target_len:
             index = f"1.0+{pos}c"
             bbox = self.top_text.bbox(index)
-            prev_index = None
-            if bbox is None and pos > 0:
-                prev_index = f"1.0+{pos-1}c"
-                prev_bbox = self.top_text.bbox(prev_index)
-                if prev_bbox is not None:
-                    x, y, w, h = prev_bbox
-                    bbox = (x + w, y, 0, h)
-                    index = prev_index  # for line metrics fallback
-            if bbox is None:
-                # Can't determine placement (likely not visible yet); hide caret
-                if self._caret_visible:
-                    self._caret_widget.place_forget()
-                    self._caret_visible = False
+            place_from_bbox(bbox, 0)
+        else:
+            if pos <= 0:
+                self._caret.place_forget()
                 return
-
-            x_bbox, y_char, _w, h_char = bbox
-            # Prefer line metrics for vertical placement to avoid per-glyph variance
-            try:
-                dl = self.top_text.dlineinfo(index)
-            except Exception:
-                dl = None
-            if dl:
-                lx, y_line, lw, h_line, *_rest = dl
-                y = y_line
-                h = h_line if h_line else (h_char or self.mono_font.metrics("linespace"))
-                # Compute x using measured width from display line start to index
-                try:
-                    line_start = self.top_text.index(f"{index} linestart")
-                    seg = self.top_text.get(line_start, index)
-                    x = lx + self.mono_font.measure(seg)
-                except Exception:
-                    x = x_bbox
-            else:
-                y = y_char
-                h = h_char if h_char else self.mono_font.metrics("linespace")
-                x = x_bbox
-
-            # Place a thin vertical bar at the caret position
-            self._caret_widget.configure(width=self._caret_width, height=h)
-            self._caret_widget.place(x=x + self._caret_x_offset, y=y + self._caret_y_offset)
-            self._caret_visible = True
-        except Exception:
-            # On any error, hide caret to avoid leaving artifacts
-            try:
-                self._caret_widget.place_forget()
-            except Exception:
-                pass
-            self._caret_visible = False
+            prev_index = f"1.0+{min(pos - 1, max(0, target_len - 1))}c"
+            bbox = self.top_text.bbox(prev_index)
+            place_from_bbox(bbox, bbox[2] if bbox else 0)
 
     def _tag_add(self, tag: str, start_i: int, end_i: int):
         self.top_text.tag_add(tag, f"1.0+{start_i}c", f"1.0+{end_i}c")
@@ -564,7 +542,6 @@ class TypingTestApp:
         rng_end = f"1.0+{end_i}c"
         self.top_text.tag_remove("correct", rng_start, rng_end)
         self.top_text.tag_remove("incorrect", rng_start, rng_end)
-        # No longer using a 'current' highlight block; caret overlay is used instead.
         self.top_text.tag_remove("current", rng_start, rng_end)
 
     def _retag_full(self, typed: str, target: str):
@@ -647,7 +624,7 @@ class TypingTestApp:
         self.test_running = False
         self.timer_running = False
 
-        # Reset real-time accuracy tracking variables
+        # Reset real-time accuracy tracking
         self.total_raw_keystrokes = 0
         self.correct_raw_keystrokes = 0
         self.incorrect_raw_keystrokes = 0
@@ -692,24 +669,27 @@ class TypingTestApp:
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
         
-        # Calculate WPM based on correct raw keystrokes
+        # Old metrics
+        n_old = min(len(typed), len(target))
+        correct_old = sum(1 for i in range(n_old) if typed[i] == target[i])
+        total_typed = len(typed)
+        accuracy = (correct_old / total_typed * 100.0) if total_typed > 0 else 0.0
+        minutes = max(elapsed, 1e-9) / 60.0
+        wpm = (correct_old / 5.0) / minutes if minutes > 0 else 0.0
+
+        # WPM/Accuracy using raw keystrokes
         minutes = max(elapsed, 1e-9) / 60.0
         wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
 
-        # Calculate Accuracy based on all keystrokes (correct, incorrect, and backspaces)
-        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
-        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
-
-        # Total Error Rate Metrics (re-using existing logic, but ensuring consistency with new accuracy)
-        # correct_chars here refers to the final correct characters in the typed string
-        correct_chars_final = sum(1 for i in range(min(len(typed), len(target))) if typed[i] == target[i])
-        incorrect_not_fixed = sum(1 for i in range(min(len(typed), len(target))) if typed[i] != target[i])
-        incorrect_fixed = self.logger.backspace_count # Backspaces are considered fixed errors
-
-        # Total keystrokes for error rate calculation might be different from accuracy's total_effective_keystrokes
-        # Let's use the definition from the original code for total_error_rate
+        incorrect_fixed = self.logger.backspace_count
+        n = min(len(typed), len(target))
+        correct_chars_final = sum(1 for i in range(n) if typed[i] == target[i])
+        incorrect_not_fixed = sum(1 for i in range(n) if typed[i] != target[i])
         total_keystrokes_for_error_rate = correct_chars_final + incorrect_not_fixed + incorrect_fixed
         total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes_for_error_rate * 100.0) if total_keystrokes_for_error_rate > 0 else 0.0
+
+        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
@@ -756,21 +736,19 @@ class TypingTestApp:
         typed = self.input_text.get("1.0", "end-1c")
         target = self.test_text
 
-        # Calculate WPM based on correct raw keystrokes
+        # WPM/Accuracy based on raw keystrokes
         minutes = max(elapsed, 1e-9) / 60.0
         wpm = (self.correct_raw_keystrokes / 5.0) / minutes if minutes > 0 else 0.0
 
-        # Calculate Accuracy based on all keystrokes (correct, incorrect, and backspaces)
-        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
-        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
-
-        # Total Error Rate Metrics (re-using existing logic, but ensuring consistency with new accuracy)
-        correct_chars_final = sum(1 for i in range(min(len(typed), len(target))) if typed[i] == target[i])
-        incorrect_not_fixed = sum(1 for i in range(min(len(typed), len(target))) if typed[i] != target[i])
-        incorrect_fixed = self.logger.backspace_count # Backspaces are considered fixed errors
-        
+        incorrect_fixed = self.logger.backspace_count
+        n = min(len(typed), len(target))
+        correct_chars_final = sum(1 for i in range(n) if typed[i] == target[i])
+        incorrect_not_fixed = sum(1 for i in range(n) if typed[i] != target[i])
         total_keystrokes_for_error_rate = correct_chars_final + incorrect_not_fixed + incorrect_fixed
         total_error_rate = ((incorrect_not_fixed + incorrect_fixed) / total_keystrokes_for_error_rate * 100.0) if total_keystrokes_for_error_rate > 0 else 0.0
+
+        total_effective_keystrokes = self.correct_raw_keystrokes + self.incorrect_raw_keystrokes + self.logger.backspace_count
+        accuracy = (self.correct_raw_keystrokes / total_effective_keystrokes * 100.0) if total_effective_keystrokes > 0 else 0.0
 
         self.wpm_var.set(f"WPM: {wpm:.1f}")
         self.acc_var.set(f"Accuracy: {accuracy:.1f}%")
