@@ -44,3 +44,5 @@ Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFi
 2025-11-12 10:20:22,Default,N/A,36.6,86.7,13.3,27.8,Default Text,85,13,0,0.000,0,0,27.850,13
 Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
 2025-11-12 13:16:25,Default,N/A,90.7,93.4,6.6,11.2,Default Text,85,6,0,0.000,0,0,11.246,6
+Timestamp,Participant,GroupNumber,WPM,Accuracy %,TotalErrorRate,TimeTaken,TestFile,CorrectChars,IncorrectFixed,IncorrectNotFixed,MouseMovementTime,MouseClicks,MouseScrolls,TotalDuration,Backspaces
+2025-11-12 13:50:50,Default,N/A,52.2,93.4,6.6,19.5,Default Text,85,6,0,0.000,0,0,19.529,6
