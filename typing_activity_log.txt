@@ -2802,3 +2802,66 @@
 [2025-11-13 14:56:17.196] SUMMARY (CSV): 0.000,0,0,57.848,18
 [2025-11-13 14:56:17.196] === LOGGING STOPPED ===
 
+[2025-11-13 15:23:53.943] === LOGGING STARTED ===
+[2025-11-13 15:24:20.984] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:24:20.984] Total mouse clicks: 0
+[2025-11-13 15:24:20.984] Total mouse scrolls: 0
+[2025-11-13 15:24:20.984] Total duration: 26.886 seconds
+[2025-11-13 15:24:20.984] Total backspaces: 22
+[2025-11-13 15:24:20.984] SUMMARY (CSV): 0.000,0,0,26.886,22
+[2025-11-13 15:24:20.984] === LOGGING STOPPED ===
+
+[2025-11-13 15:24:56.179] === LOGGING STARTED ===
+[2025-11-13 15:26:56.458] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:26:56.459] Total mouse clicks: 0
+[2025-11-13 15:26:56.459] Total mouse scrolls: 0
+[2025-11-13 15:26:56.459] Total duration: 119.961 seconds
+[2025-11-13 15:26:56.459] Total backspaces: 70
+[2025-11-13 15:26:56.459] SUMMARY (CSV): 0.000,0,0,119.961,70
+[2025-11-13 15:26:56.459] === LOGGING STOPPED ===
+
+[2025-11-13 15:29:16.365] === LOGGING STARTED ===
+[2025-11-13 15:30:31.148] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:30:31.149] Total mouse clicks: 0
+[2025-11-13 15:30:31.149] Total mouse scrolls: 0
+[2025-11-13 15:30:31.149] Total duration: 74.611 seconds
+[2025-11-13 15:30:31.149] Total backspaces: 64
+[2025-11-13 15:30:31.149] SUMMARY (CSV): 0.000,0,0,74.611,64
+[2025-11-13 15:30:31.149] === LOGGING STOPPED ===
+
+[2025-11-13 15:31:42.819] === LOGGING STARTED ===
+[2025-11-13 15:33:43.068] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:33:43.069] Total mouse clicks: 0
+[2025-11-13 15:33:43.069] Total mouse scrolls: 0
+[2025-11-13 15:33:43.069] Total duration: 119.843 seconds
+[2025-11-13 15:33:43.069] Total backspaces: 78
+[2025-11-13 15:33:43.069] SUMMARY (CSV): 0.000,0,0,119.843,78
+[2025-11-13 15:33:43.069] === LOGGING STOPPED ===
+
+[2025-11-13 15:37:31.257] === LOGGING STARTED ===
+[2025-11-13 15:39:31.526] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:39:31.526] Total mouse clicks: 0
+[2025-11-13 15:39:31.526] Total mouse scrolls: 0
+[2025-11-13 15:39:31.527] Total duration: 119.388 seconds
+[2025-11-13 15:39:31.527] Total backspaces: 43
+[2025-11-13 15:39:31.527] SUMMARY (CSV): 0.000,0,0,119.388,43
+[2025-11-13 15:39:31.527] === LOGGING STOPPED ===
+
+[2025-11-13 15:40:30.197] === LOGGING STARTED ===
+[2025-11-13 15:42:30.422] Total mouse movement time: 2.074 seconds
+[2025-11-13 15:42:30.422] Total mouse clicks: 2
+[2025-11-13 15:42:30.422] Total mouse scrolls: 0
+[2025-11-13 15:42:30.423] Total duration: 120.000 seconds
+[2025-11-13 15:42:30.423] Total backspaces: 70
+[2025-11-13 15:42:30.423] SUMMARY (CSV): 2.074,2,0,120.000,70
+[2025-11-13 15:42:30.423] === LOGGING STOPPED ===
+
+[2025-11-13 15:43:28.982] === LOGGING STARTED ===
+[2025-11-13 15:45:29.211] Total mouse movement time: 0.000 seconds
+[2025-11-13 15:45:29.211] Total mouse clicks: 0
+[2025-11-13 15:45:29.211] Total mouse scrolls: 0
+[2025-11-13 15:45:29.211] Total duration: 119.901 seconds
+[2025-11-13 15:45:29.211] Total backspaces: 33
+[2025-11-13 15:45:29.212] SUMMARY (CSV): 0.000,0,0,119.901,33
+[2025-11-13 15:45:29.212] === LOGGING STOPPED ===
+
