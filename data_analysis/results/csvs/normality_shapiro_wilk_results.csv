@@ -1,0 +1,25 @@
+Variable,Keyboard,Task,N,W-Statistic,p-value,Normality
+Accuracy,KB1 (60%),Task A · Text Entry,33,0.892,0.003,Violation
+Accuracy,KB1 (60%),Task B · Number Entry,33,0.615,0.0,Violation
+Accuracy,KB1 (60%),Task C · Programming,33,0.412,0.0,Violation
+Accuracy,KB2 (100%),Task A · Text Entry,33,0.949,0.121,Normal
+Accuracy,KB2 (100%),Task B · Number Entry,33,0.963,0.315,Normal
+Accuracy,KB2 (100%),Task C · Programming,33,0.791,0.0,Violation
+ErrorRate,KB1 (60%),Task A · Text Entry,33,0.853,0.0,Violation
+ErrorRate,KB1 (60%),Task B · Number Entry,33,0.889,0.003,Violation
+ErrorRate,KB1 (60%),Task C · Programming,33,0.848,0.0,Violation
+ErrorRate,KB2 (100%),Task A · Text Entry,33,0.929,0.033,Violation
+ErrorRate,KB2 (100%),Task B · Number Entry,33,0.942,0.077,Normal
+ErrorRate,KB2 (100%),Task C · Programming,33,0.981,0.811,Normal
+Raw_TLX,KB1 (60%),Task A · Text Entry,33,0.902,0.006,Violation
+Raw_TLX,KB1 (60%),Task B · Number Entry,33,0.948,0.113,Normal
+Raw_TLX,KB1 (60%),Task C · Programming,33,0.979,0.75,Normal
+Raw_TLX,KB2 (100%),Task A · Text Entry,33,0.937,0.057,Normal
+Raw_TLX,KB2 (100%),Task B · Number Entry,33,0.973,0.571,Normal
+Raw_TLX,KB2 (100%),Task C · Programming,33,0.951,0.138,Normal
+WPM,KB1 (60%),Task A · Text Entry,33,0.979,0.758,Normal
+WPM,KB1 (60%),Task B · Number Entry,33,0.987,0.958,Normal
+WPM,KB1 (60%),Task C · Programming,33,0.966,0.381,Normal
+WPM,KB2 (100%),Task A · Text Entry,33,0.964,0.324,Normal
+WPM,KB2 (100%),Task B · Number Entry,33,0.965,0.363,Normal
+WPM,KB2 (100%),Task C · Programming,33,0.966,0.377,Normal
