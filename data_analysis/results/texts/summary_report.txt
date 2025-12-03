@@ -1,0 +1,41 @@
+Keyboard Preference Matching: Mixed-Effects Analysis Report
+===========================================================
+
+1. Sample Overview
+- Total participants: 31
+- Participants with at least one PreferenceMatch=1 condition: 19
+- Participants with PreferenceMatch=0 only: 12
+- Total observations (rows in perf_tlx): 186
+- Observations by PreferenceMatch × TaskCode:
+  - PreferenceMatch=0, TaskCode=A: N=42
+  - PreferenceMatch=0, TaskCode=B: N=42
+  - PreferenceMatch=0, TaskCode=C: N=42
+  - PreferenceMatch=1, TaskCode=A: N=20
+  - PreferenceMatch=1, TaskCode=B: N=20
+  - PreferenceMatch=1, TaskCode=C: N=20
+
+2. Statistical Results (mixed models with participant random intercept)
+- See 'results/csvs/mixed_model_results.csv' and 'results/csvs/statistical_results_table.csv' for full details.
+
+3. Key Findings (p < 0.05)
+- Dependent variables with a significant main effect of PreferenceMatch:
+  - WPM: F(1, 150) = 4.42, p = 0.037, partial eta² = 0.029; WPM: Pref=0 mean=44.20 [40.42, 47.97], Pref=1 mean=47.68 [41.89, 53.46]
+  - Mental Demand: F(1, 150) = 7.35, p = 0.007, partial eta² = 0.047; Mental Demand: Pref=0 mean=4.49 [4.12, 4.86], Pref=1 mean=3.83 [3.32, 4.34]
+  - Physical Demand: F(1, 150) = 14.25, p = 0.000, partial eta² = 0.087; Physical Demand: Pref=0 mean=4.22 [3.84, 4.60], Pref=1 mean=3.27 [2.72, 3.81]
+  - Effort: F(1, 150) = 4.33, p = 0.039, partial eta² = 0.028; Effort: Pref=0 mean=4.53 [4.13, 4.93], Pref=1 mean=3.97 [3.41, 4.52]
+- Dependent variables with a significant main effect of TaskCode:
+  - WPM: F(2, 150) = 217.92, p < 0.05, partial eta² = 0.744
+  - Accuracy: F(2, 150) = 6.06, p < 0.05, partial eta² = 0.075
+  - ErrorRate: F(2, 150) = 30.20, p < 0.05, partial eta² = 0.287
+  - Mental Demand: F(2, 150) = 36.34, p < 0.05, partial eta² = 0.326
+  - Physical Demand: F(2, 150) = 11.74, p < 0.05, partial eta² = 0.135
+  - Temporal Demand: F(2, 150) = 23.39, p < 0.05, partial eta² = 0.238
+  - Effort: F(2, 150) = 23.67, p < 0.05, partial eta² = 0.240
+  - Frustration Level: F(2, 150) = 20.68, p < 0.05, partial eta² = 0.216
+  - Performance: F(2, 150) = 23.96, p < 0.05, partial eta² = 0.242
+- No dependent variables showed a significant PreferenceMatch × TaskCode interaction.
+
+4. Interpretation (high-level)
+- Performance metrics where higher is better (WPM, Accuracy, TLX Performance) and lower is better (ErrorRate, Backspaces, TotalTime) can be interpreted directly using the marginal means reported above.
+- NASA-TLX workload dimensions (Mental, Physical, Temporal Demand, Effort, Frustration) should decrease when the keyboard matches participant preference if preference matching reduces workload.
+- Use the significant PreferenceMatch and interaction effects (if any) to support claims about whether matching the participant's preferred layout improves objective performance and/or reduces subjective workload, and whether these patterns differ by task type.
